@@ -3,6 +3,7 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'NavigationDrawer_Screen.dart';
 
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -19,12 +20,20 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController brokerController = TextEditingController();
   final TextEditingController topicController = TextEditingController();
 
-
   MqttServerClient? client;
   bool isConnected = false;
 
-
   final List<Map<String, dynamic>> messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    brokerController.text = 'test.mosquitto.org';
+    topicController.text = 'flutter/test';
+    usernameController.text = '';
+    passwordController.text = '';
+    connectMQTT();
+  }
 
   @override
   void dispose() {
@@ -37,7 +46,6 @@ class _HomePageState extends State<HomePage> {
     client?.disconnect();
     super.dispose();
   }
-
 
   Future<void> connectMQTT() async {
     final broker = brokerController.text.trim();
@@ -89,7 +97,6 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           messages.add({"text": pt, "sentByMe": false});
         });
-
 
         Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients) {
@@ -152,12 +159,19 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text("MQTT Chat App"),
         backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: Icon(isConnected ? Icons.wifi : Icons.wifi_off, color: Colors.white),
+            onPressed: connectMQTT,
+          )
+        ],
       ),
       drawer: AppDrawer(
         usernameController: usernameController,
         passwordController: passwordController,
         brokerController: brokerController,
         topicController: topicController,
+        onSave: connectMQTT,
       ),
       body: Column(
         children: [

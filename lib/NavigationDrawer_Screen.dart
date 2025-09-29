@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:task/Qr_Screen.dart';
 
 class AppDrawer extends StatefulWidget {
   final TextEditingController usernameController;
   final TextEditingController passwordController;
   final TextEditingController brokerController;
   final TextEditingController topicController;
+  final VoidCallback onSave; // 🔹 callback for settings save
 
   const AppDrawer({
     super.key,
@@ -13,6 +13,7 @@ class AppDrawer extends StatefulWidget {
     required this.passwordController,
     required this.brokerController,
     required this.topicController,
+    required this.onSave,
   });
 
   @override
@@ -47,25 +48,6 @@ class _AppDrawerState extends State<AppDrawer> {
           ),
 
           ExpansionTile(
-            leading: const Icon(Icons.topic),
-            title: const Text("Topics"),
-            children: [
-              ListTile(
-                title: const Text("IN", style: TextStyle(color: Colors.green)),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                title: const Text("OUT", style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-
-          ExpansionTile(
             leading: const Icon(Icons.settings),
             title: const Text("MQTT Settings"),
             children: [
@@ -87,6 +69,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     labelText: "Password",
                     border: OutlineInputBorder(),
                   ),
+                  obscureText: true,
                 ),
               ),
               Padding(
@@ -113,23 +96,13 @@ class _AppDrawerState extends State<AppDrawer> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context); // Close drawer
+                    widget.onSave();
+                    Navigator.pop(context);
                   },
-                  child: const Text("Save Settings"),
+                  child: const Text("Save & Reconnect"),
                 ),
               ),
             ],
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.document_scanner),
-            title: const Text("QR Scanner"),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const QrScannerScreen()),
-              );
-            },
           ),
 
           const Divider(),
