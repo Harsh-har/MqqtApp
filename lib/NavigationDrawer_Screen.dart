@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'Qr_Screen.dart';
 
 class AppDrawer extends StatefulWidget {
   final TextEditingController usernameController;
   final TextEditingController passwordController;
   final TextEditingController brokerController;
   final TextEditingController topicController;
-  final VoidCallback onSave; // 🔹 callback for settings save
+  final TextEditingController ipController;
+  final VoidCallback onSave;
 
   const AppDrawer({
     super.key,
@@ -13,6 +15,7 @@ class AppDrawer extends StatefulWidget {
     required this.passwordController,
     required this.brokerController,
     required this.topicController,
+    required this.ipController,
     required this.onSave,
   });
 
@@ -21,24 +24,43 @@ class AppDrawer extends StatefulWidget {
 }
 
 class _AppDrawerState extends State<AppDrawer> {
+  Widget buildTextField({
+    required TextEditingController controller,
+    required String label,
+    bool obscure = false,
+    TextInputType type = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        keyboardType: type,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          UserAccountsDrawerHeader(
-            accountName: const Text("Harsh Singhal"),
-            accountEmail: const Text("harsh@singhal.com"),
-            currentAccountPicture: const CircleAvatar(
+          const UserAccountsDrawerHeader(
+            accountName: Text("Harsh Singhal"),
+            accountEmail: Text("harsh@singhal.com"),
+            currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
               child: Icon(Icons.person, size: 40, color: Colors.blueAccent),
             ),
-            decoration: const BoxDecoration(
-              color: Colors.blueAccent,
-            ),
+            decoration: BoxDecoration(color: Colors.blueAccent),
           ),
 
+          // Home menu
           ListTile(
             leading: const Icon(Icons.home),
             title: const Text("Home"),
@@ -47,62 +69,61 @@ class _AppDrawerState extends State<AppDrawer> {
             },
           ),
 
+          // MQTT Settings
           ExpansionTile(
             leading: const Icon(Icons.settings),
             title: const Text("MQTT Settings"),
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: TextField(
-                  controller: widget.usernameController,
-                  decoration: const InputDecoration(
-                    labelText: "Username",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+              buildTextField(
+                controller: widget.usernameController,
+                label: "Username (optional)",
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: TextField(
-                  controller: widget.passwordController,
-                  decoration: const InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                ),
+              buildTextField(
+                controller: widget.passwordController,
+                label: "Password (optional)",
+                obscure: true,
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: TextField(
-                  controller: widget.brokerController,
-                  decoration: const InputDecoration(
-                    labelText: "Broker ID / Host",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+              buildTextField(
+                controller: widget.brokerController,
+                label: "Broker Host / ID",
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: TextField(
-                  controller: widget.topicController,
-                  decoration: const InputDecoration(
-                    labelText: "Topic",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+              buildTextField(
+                controller: widget.ipController,
+                label: "Broker IP (optional)",
+                type: TextInputType.number,
+              ),
+              buildTextField(
+                controller: widget.topicController,
+                label: "Topic",
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Save & Reconnect"),
                   onPressed: () {
+                    // MQTT connect function call
                     widget.onSave();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("🔄 Settings saved, reconnecting...")),
+                    );
                     Navigator.pop(context);
                   },
-                  child: const Text("Save & Reconnect"),
                 ),
               ),
             ],
+          ),
+
+          // QR Code menu
+          ListTile(
+            leading: const Icon(Icons.qr_code),
+            title: const Text("QR Code"),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => QrScannerScreen()),
+              );
+            },
           ),
 
           const Divider(),

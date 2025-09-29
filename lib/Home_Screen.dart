@@ -3,7 +3,6 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'NavigationDrawer_Screen.dart';
 
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -15,6 +14,7 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  final TextEditingController ipController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController brokerController = TextEditingController();
@@ -22,16 +22,18 @@ class _HomePageState extends State<HomePage> {
 
   MqttServerClient? client;
   bool isConnected = false;
+  late String clientId;
 
   final List<Map<String, dynamic>> messages = [];
 
   @override
   void initState() {
     super.initState();
-    brokerController.text = 'test.mosquitto.org';
+    brokerController.text = '192.168.1.200'; // 🔹 Local broker IP
     topicController.text = 'flutter/test';
-    usernameController.text = '';
-    passwordController.text = '';
+    usernameController.text = 'myuser'; // 🔹 Set your broker username
+    passwordController.text = 'mypassword'; // 🔹 Set your broker password
+    clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}';
     connectMQTT();
   }
 
@@ -60,24 +62,29 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    client = MqttServerClient(broker, 'flutter_client_${DateTime.now().millisecondsSinceEpoch}');
+    client = MqttServerClient(broker, clientId);
     client!.port = 1883;
-    client!.logging(on: false);
+    client!.logging(on: true); // 🔹 Enable logging
     client!.keepAlivePeriod = 20;
     client!.onDisconnected = onDisconnected;
     client!.onConnected = onConnected;
     client!.onSubscribed = onSubscribed;
 
     client!.connectionMessage = MqttConnectMessage()
-        .withClientIdentifier('flutter_client_${DateTime.now().millisecondsSinceEpoch}')
+        .withClientIdentifier(clientId)
         .startClean()
         .authenticateAs(username, password)
         .withWillTopic('willtopic')
-        .withWillMessage('My Will message')
+        .withWillMessage('Client disconnected unexpectedly')
         .withWillQos(MqttQos.atLeastOnce);
 
     try {
-      await client!.connect();
+      // 🔹 If username/password provided, use them, else null
+      if (username.isNotEmpty && password.isNotEmpty) {
+        await client!.connect(username, password);
+      } else {
+        await client!.connect();
+      }
     } catch (e) {
       client!.disconnect();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +100,9 @@ class _HomePageState extends State<HomePage> {
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final recMess = c[0].payload as MqttPublishMessage;
         final pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+
+        // 🔹 Ignore messages sent by this client
+        if (pt.startsWith("$clientId:")) return;
 
         setState(() {
           messages.add({"text": pt, "sentByMe": false});
@@ -138,7 +148,7 @@ class _HomePageState extends State<HomePage> {
     final topic = topicController.text.trim();
 
     final builder = MqttClientPayloadBuilder();
-    builder.addString(text);
+    builder.addString("$clientId:$text");
     client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
 
     setState(() {
@@ -171,6 +181,7 @@ class _HomePageState extends State<HomePage> {
         passwordController: passwordController,
         brokerController: brokerController,
         topicController: topicController,
+        ipController: ipController,
         onSave: connectMQTT,
       ),
       body: Column(

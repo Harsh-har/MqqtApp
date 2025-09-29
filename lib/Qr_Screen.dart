@@ -12,7 +12,7 @@ class QrScannerScreen extends StatefulWidget {
 
 class _QrScannerScreenState extends State<QrScannerScreen> {
   String? scannedResult;
-  bool isProcessing = false; // Prevent multiple scans
+  bool isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +64,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                   await Future.delayed(const Duration(seconds: 2));
                   isProcessing = false;
                 }
-                setState(() {}); // Update scannedResult text
+                setState(() {});
               },
             ),
           ),
