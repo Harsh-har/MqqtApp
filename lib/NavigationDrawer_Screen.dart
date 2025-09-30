@@ -60,7 +60,6 @@ class _AppDrawerState extends State<AppDrawer> {
             decoration: BoxDecoration(color: Colors.blueAccent),
           ),
 
-          // Home menu
           ListTile(
             leading: const Icon(Icons.home),
             title: const Text("Home"),
@@ -76,20 +75,20 @@ class _AppDrawerState extends State<AppDrawer> {
             children: [
               buildTextField(
                 controller: widget.usernameController,
-                label: "Username (optional)",
+                label: "Username",
               ),
               buildTextField(
                 controller: widget.passwordController,
-                label: "Password (optional)",
+                label: "Password",
                 obscure: true,
               ),
               buildTextField(
                 controller: widget.brokerController,
-                label: "Broker Host / ID",
+                label: "Broker ID",
               ),
               buildTextField(
                 controller: widget.ipController,
-                label: "Broker IP (optional)",
+                label: "Broker IP ",
                 type: TextInputType.number,
               ),
               buildTextField(
@@ -99,13 +98,12 @@ class _AppDrawerState extends State<AppDrawer> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.refresh),
-                  label: const Text("Save & Reconnect"),
+                  icon: const Icon(Icons.save),
+                  label: const Text("Save"),
                   onPressed: () {
-                    // MQTT connect function call
                     widget.onSave();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("🔄 Settings saved, reconnecting...")),
+                      const SnackBar(content: Text("🔄 Settings saved")),
                     );
                     Navigator.pop(context);
                   },
@@ -114,7 +112,6 @@ class _AppDrawerState extends State<AppDrawer> {
             ],
           ),
 
-          // QR Code menu
           ListTile(
             leading: const Icon(Icons.qr_code),
             title: const Text("QR Code"),

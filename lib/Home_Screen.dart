@@ -29,10 +29,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    brokerController.text = '192.168.1.200'; // 🔹 Local broker IP
-    topicController.text = 'flutter/test';
-    usernameController.text = 'myuser'; // 🔹 Set your broker username
-    passwordController.text = 'mypassword'; // 🔹 Set your broker password
+    // Default settings
+    brokerController.text = '';
+    topicController.text = '';
+    usernameController.text = '';
+    passwordController.text = '';
     clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}';
     connectMQTT();
   }
@@ -64,7 +65,7 @@ class _HomePageState extends State<HomePage> {
 
     client = MqttServerClient(broker, clientId);
     client!.port = 1883;
-    client!.logging(on: true); // 🔹 Enable logging
+    client!.logging(on: true);
     client!.keepAlivePeriod = 20;
     client!.onDisconnected = onDisconnected;
     client!.onConnected = onConnected;
@@ -79,7 +80,6 @@ class _HomePageState extends State<HomePage> {
         .withWillQos(MqttQos.atLeastOnce);
 
     try {
-      // 🔹 If username/password provided, use them, else null
       if (username.isNotEmpty && password.isNotEmpty) {
         await client!.connect(username, password);
       } else {
@@ -99,15 +99,27 @@ class _HomePageState extends State<HomePage> {
 
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final recMess = c[0].payload as MqttPublishMessage;
-        final pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final rawPayload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
 
-        // 🔹 Ignore messages sent by this client
-        if (pt.startsWith("$clientId:")) return;
+        // Define the expected prefix for all published messages
+        final prefix = "$clientId:";
+
+        // 1. Filter out the message published by this client itself (echo from broker)
+        if (rawPayload.startsWith(prefix)) return;
+
+        // 2. Strip the SENDER's client ID from the payload before displaying
+        String messageText = rawPayload;
+        final parts = rawPayload.split(':');
+        if (parts.length > 1 && parts[0].length > 0) {
+          // Re-join everything after the first colon to get the clean message
+          messageText = parts.sublist(1).join(':').trim();
+        }
 
         setState(() {
-          messages.add({"text": pt, "sentByMe": false});
+          messages.add({"text": messageText, "sentByMe": false});
         });
 
+        // Scroll to the bottom of the chat view
         Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients) {
             _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -123,16 +135,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   void onConnected() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ Connected to MQTT Broker")),
-    );
+    // Ensure state update runs only if the widget is mounted
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Connected to MQTT Broker")),
+      );
+    }
   }
 
   void onDisconnected() {
-    setState(() => isConnected = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("⚠️ Disconnected from MQTT Broker")),
-    );
+    if (mounted) {
+      setState(() => isConnected = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ Disconnected from MQTT Broker")),
+      );
+    }
   }
 
   void onSubscribed(String topic) {
@@ -148,7 +165,7 @@ class _HomePageState extends State<HomePage> {
     final topic = topicController.text.trim();
 
     final builder = MqttClientPayloadBuilder();
-    builder.addString("$clientId:$text");
+     builder.addString("$clientId:$text");
     client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
 
     setState(() {
@@ -198,6 +215,9 @@ class _HomePageState extends State<HomePage> {
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
                   child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                     margin: const EdgeInsets.symmetric(vertical: 5),
                     decoration: BoxDecoration(
@@ -221,26 +241,45 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-            color: Colors.grey[100],
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: "Type a message...",
-                      border: InputBorder.none,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            color: Colors.white,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        minLines: 1,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: "Type a message...",
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.blueAccent),
-                  onPressed: sendMessage,
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.blueAccent,
+                    child: IconButton(
+                      icon: const Icon(Icons.send, size: 18, color: Colors.white),
+                      onPressed: sendMessage,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          )
+          ,
+
         ],
       ),
     );
