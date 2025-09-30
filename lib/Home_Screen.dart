@@ -18,7 +18,8 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController brokerController = TextEditingController();
-  final TextEditingController topicController = TextEditingController();
+  final TextEditingController inTopicController = TextEditingController();
+  final TextEditingController outTopicController = TextEditingController();
 
   MqttServerClient? client;
   bool isConnected = false;
@@ -31,9 +32,10 @@ class _HomePageState extends State<HomePage> {
     super.initState();
 
     brokerController.text = '192.168.1.200';
-    topicController.text = 'test';
     usernameController.text = 'Swajahome';
     passwordController.text = '12345678';
+    inTopicController.text = 'test/in';
+    outTopicController.text = 'test/out';
     clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}';
     connectMQTT();
   }
@@ -45,7 +47,8 @@ class _HomePageState extends State<HomePage> {
     usernameController.dispose();
     passwordController.dispose();
     brokerController.dispose();
-    topicController.dispose();
+    inTopicController.dispose();
+    outTopicController.dispose();
     client?.disconnect();
     super.dispose();
   }
@@ -54,11 +57,11 @@ class _HomePageState extends State<HomePage> {
     final broker = brokerController.text.trim();
     final username = usernameController.text.trim();
     final password = passwordController.text.trim();
-    final topic = topicController.text.trim();
+    final inTopic = inTopicController.text.trim();
 
-    if (broker.isEmpty || topic.isEmpty) {
+    if (broker.isEmpty || inTopic.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Broker and Topic are required")),
+        const SnackBar(content: Text("Broker and Incoming Topic are required")),
       );
       return;
     }
@@ -95,16 +98,16 @@ class _HomePageState extends State<HomePage> {
 
     if (client!.connectionStatus!.state == MqttConnectionState.connected) {
       setState(() => isConnected = true);
-      client!.subscribe(topic, MqttQos.atLeastOnce);
+
+      // Subscribe only to Incoming Topic
+      client!.subscribe(inTopic, MqttQos.atLeastOnce);
 
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final recMess = c[0].payload as MqttPublishMessage;
-        final rawPayload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final rawPayload =
+        MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
 
-        // Extract clean message text (remove any client IDs)
         final cleanMessage = _extractCleanMessage(rawPayload);
-
-        // Check if this is our own message by comparing with sent messages
         final isMyMessage = _isMyOwnMessage(cleanMessage);
 
         if (!isMyMessage) {
@@ -114,7 +117,8 @@ class _HomePageState extends State<HomePage> {
 
           Future.delayed(const Duration(milliseconds: 100), () {
             if (_scrollController.hasClients) {
-              _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+              _scrollController.jumpTo(
+                  _scrollController.position.maxScrollExtent);
             }
           });
         }
@@ -128,7 +132,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _extractCleanMessage(String rawPayload) {
-    // Remove any client ID prefixes (format: "clientId:message")
     final colonIndex = rawPayload.indexOf(':');
     if (colonIndex != -1 && colonIndex < rawPayload.length - 1) {
       return rawPayload.substring(colonIndex + 1).trim();
@@ -137,8 +140,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool _isMyOwnMessage(String message) {
-    // Check if this message was recently sent by us
-    return messages.any((msg) => msg["sentByMe"] == true && msg["text"] == message);
+    return messages.any(
+            (msg) => msg["sentByMe"] == true && msg["text"] == message);
   }
 
   void onConnected() {
@@ -168,12 +171,11 @@ class _HomePageState extends State<HomePage> {
     if (_controller.text.trim().isEmpty || !isConnected) return;
 
     final text = _controller.text.trim();
-    final topic = topicController.text.trim();
+    final outTopic = outTopicController.text.trim();
 
     final builder = MqttClientPayloadBuilder();
-    // Send only the clean message
     builder.addString(text);
-    client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    client?.publishMessage(outTopic, MqttQos.atLeastOnce, builder.payload!);
 
     setState(() {
       messages.add({"text": text, "sentByMe": true});
@@ -191,11 +193,17 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Center(child: const Text("MQTT Chat App",style: TextStyle(color: Colors.white),)),
+        title: const Center(
+          child: Text(
+            "MQTT Chat App",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
         backgroundColor: Colors.blueAccent,
         actions: [
           IconButton(
-            icon: Icon(isConnected ? Icons.wifi : Icons.wifi_off, color: Colors.white),
+            icon: Icon(isConnected ? Icons.wifi : Icons.wifi_off,
+                color: Colors.white),
             onPressed: connectMQTT,
           )
         ],
@@ -204,7 +212,8 @@ class _HomePageState extends State<HomePage> {
         usernameController: usernameController,
         passwordController: passwordController,
         brokerController: brokerController,
-        topicController: topicController,
+        inTopicController: inTopicController,
+        outTopicController: outTopicController,
         ipController: ipController,
         onSave: connectMQTT,
       ),
@@ -225,21 +234,29 @@ class _HomePageState extends State<HomePage> {
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * 0.75,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 14),
                     margin: const EdgeInsets.symmetric(vertical: 5),
                     decoration: BoxDecoration(
-                      color: msg["sentByMe"] ? Colors.blueAccent : Colors.grey[300],
+                      color: msg["sentByMe"]
+                          ? Colors.blueAccent
+                          : Colors.grey[300],
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(12),
                         topRight: const Radius.circular(12),
-                        bottomLeft: msg["sentByMe"] ? const Radius.circular(12) : const Radius.circular(0),
-                        bottomRight: msg["sentByMe"] ? const Radius.circular(0) : const Radius.circular(12),
+                        bottomLeft: msg["sentByMe"]
+                            ? const Radius.circular(12)
+                            : const Radius.circular(0),
+                        bottomRight: msg["sentByMe"]
+                            ? const Radius.circular(0)
+                            : const Radius.circular(12),
                       ),
                     ),
                     child: Text(
                       msg["text"],
                       style: TextStyle(
-                        color: msg["sentByMe"] ? Colors.white : Colors.black87,
+                        color:
+                        msg["sentByMe"] ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
@@ -255,7 +272,8 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(20),
@@ -277,7 +295,8 @@ class _HomePageState extends State<HomePage> {
                     radius: 20,
                     backgroundColor: Colors.blueAccent,
                     child: IconButton(
-                      icon: const Icon(Icons.send, size: 18, color: Colors.white),
+                      icon: const Icon(Icons.send,
+                          size: 18, color: Colors.white),
                       onPressed: sendMessage,
                     ),
                   ),
@@ -290,3 +309,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+//
+// Device A → set inTopic = deviceA/in, outTopic = deviceB/in
+//
+// Device B → set inTopic = deviceB/in, outTopic = deviceA/in

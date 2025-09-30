@@ -5,7 +5,8 @@ class AppDrawer extends StatefulWidget {
   final TextEditingController usernameController;
   final TextEditingController passwordController;
   final TextEditingController brokerController;
-  final TextEditingController topicController;
+  final TextEditingController inTopicController;
+  final TextEditingController outTopicController;
   final TextEditingController ipController;
   final VoidCallback onSave;
 
@@ -14,7 +15,8 @@ class AppDrawer extends StatefulWidget {
     required this.usernameController,
     required this.passwordController,
     required this.brokerController,
-    required this.topicController,
+    required this.inTopicController,
+    required this.outTopicController,
     required this.ipController,
     required this.onSave,
   });
@@ -68,7 +70,6 @@ class _AppDrawerState extends State<AppDrawer> {
             },
           ),
 
-          // MQTT Settings
           ExpansionTile(
             leading: const Icon(Icons.settings),
             title: const Text("MQTT Settings"),
@@ -87,14 +88,14 @@ class _AppDrawerState extends State<AppDrawer> {
                 label: "Broker ID",
               ),
               buildTextField(
-                controller: widget.ipController,
-                label: "Broker IP ",
-                type: TextInputType.number,
+                controller: widget.inTopicController,
+                label: "Topic In",
               ),
               buildTextField(
-                controller: widget.topicController,
-                label: "Topic",
+                controller: widget.outTopicController,
+                label: "Topic Out",
               ),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ElevatedButton.icon(
