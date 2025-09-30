@@ -29,11 +29,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Default settings
-    brokerController.text = '';
-    topicController.text = '';
-    usernameController.text = '';
-    passwordController.text = '';
+
+    brokerController.text = '192.168.1.200';
+    topicController.text = 'test';
+    usernameController.text = 'Swajahome';
+    passwordController.text = '12345678';
     clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}';
     connectMQTT();
   }
@@ -101,30 +101,23 @@ class _HomePageState extends State<HomePage> {
         final recMess = c[0].payload as MqttPublishMessage;
         final rawPayload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
 
-        // Define the expected prefix for all published messages
-        final prefix = "$clientId:";
+        // Extract clean message text (remove any client IDs)
+        final cleanMessage = _extractCleanMessage(rawPayload);
 
-        // 1. Filter out the message published by this client itself (echo from broker)
-        if (rawPayload.startsWith(prefix)) return;
+        // Check if this is our own message by comparing with sent messages
+        final isMyMessage = _isMyOwnMessage(cleanMessage);
 
-        // 2. Strip the SENDER's client ID from the payload before displaying
-        String messageText = rawPayload;
-        final parts = rawPayload.split(':');
-        if (parts.length > 1 && parts[0].length > 0) {
-          // Re-join everything after the first colon to get the clean message
-          messageText = parts.sublist(1).join(':').trim();
+        if (!isMyMessage) {
+          setState(() {
+            messages.add({"text": cleanMessage, "sentByMe": false});
+          });
+
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+            }
+          });
         }
-
-        setState(() {
-          messages.add({"text": messageText, "sentByMe": false});
-        });
-
-        // Scroll to the bottom of the chat view
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (_scrollController.hasClients) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,8 +127,21 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  String _extractCleanMessage(String rawPayload) {
+    // Remove any client ID prefixes (format: "clientId:message")
+    final colonIndex = rawPayload.indexOf(':');
+    if (colonIndex != -1 && colonIndex < rawPayload.length - 1) {
+      return rawPayload.substring(colonIndex + 1).trim();
+    }
+    return rawPayload;
+  }
+
+  bool _isMyOwnMessage(String message) {
+    // Check if this message was recently sent by us
+    return messages.any((msg) => msg["sentByMe"] == true && msg["text"] == message);
+  }
+
   void onConnected() {
-    // Ensure state update runs only if the widget is mounted
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Connected to MQTT Broker")),
@@ -165,7 +171,8 @@ class _HomePageState extends State<HomePage> {
     final topic = topicController.text.trim();
 
     final builder = MqttClientPayloadBuilder();
-     builder.addString("$clientId:$text");
+    // Send only the clean message
+    builder.addString(text);
     client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
 
     setState(() {
@@ -184,7 +191,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("MQTT Chat App"),
+        title: Center(child: const Text("MQTT Chat App",style: TextStyle(color: Colors.white),)),
         backgroundColor: Colors.blueAccent,
         actions: [
           IconButton(
@@ -277,9 +284,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-          )
-          ,
-
+          ),
         ],
       ),
     );
